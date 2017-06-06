@@ -1,11 +1,14 @@
 #!/usr/bin/perl -w
 
+use lib 'Excel-Writer-XLSX-0.95/lib';
+use Excel::Writer::XLSX;
 
 open proteome_1, "temp/blastp_1" or die "$!";
 open proteome_2, "temp/blastp_2" or die "$!";
 
 $searchcount = 0;
 
+$besthit_1{"nohit"} = "nohit";
 while (<proteome_1>){
 	$searchcount++;
 	$line = $_;
@@ -24,6 +27,7 @@ while (<proteome_1>){
 	   else {$searchcount--}
 	}
 }
+$besthit_2{"nohit"} = "nohit";
 while (<proteome_2>){
 	$searchcount++;
 	$line = $_;
@@ -42,35 +46,41 @@ while (<proteome_2>){
 	   else {$searchcount--}
 	}
 }
+
+my $workbook  = Excel::Writer::XLSX->new('results.xlsx');
+my $worksheet1 = $workbook->add_worksheet('no_rbh_proteome_1');
+my $worksheet2 = $workbook->add_worksheet('no_rbh_proteome_2');
+my $worksheet3 = $workbook->add_worksheet('reciprocal_best_hits');
+
+$worksheet3->write( 0, 1, "proteome_1" );
+$worksheet3->write( 0, 2, "proteome_2" );
+
 $i = 0;
+$j = 0;
 foreach (sort keys %besthit_1){
-	if ($_ eq $besthit_2{$besthit_1{$_}}){
+	if ($_ eq "nohit"){}
+	elsif ($_ eq $besthit_2{$besthit_1{$_}}){
 		$reciprocalbesthits{$_} = $besthit_1{$_};
+		$j++;
+		$worksheet3->write( $j, 1, "$_" );
+		$worksheet3->write( $j, 2, "$besthit_1{$_}" );
 	}
 	else{
 		$nonreciprocalbesthits_1[$i] = $_;
 		$i++;
+		$worksheet1->write( $i, 1, "$_" );
 	}
 }
 $i = 0;
 foreach (sort keys %besthit_2){
-	if ($_ eq $besthit_1{$besthit_2{$_}}){
+	if ($_ eq "nohit"){}
+	elsif ($_ eq $besthit_1{$besthit_2{$_}}){
 	}
 	else{
 		$nonreciprocalbesthits_2[$i] = $_;
 		$i++;
+		$worksheet2->write( $i, 1, "$_" );
 	}
 }
 
-print "\nreciprocal-best-hits of species 1 and 2\n\n";
-foreach (sort keys %reciprocalbesthits){
-	print "$_ $reciprocalbesthits{$_}\n";
-}
-print "\nnonreciprocal-best-hits of species 1\n\n";
-foreach (@nonreciprocalbesthits_1){
-	print "$_\n";
-}
-print "\nnonreciprocal-best-hits of species 2\n\n";
-foreach (@nonreciprocalbesthits_2){
-	print "$_\n";
-}
+$workbook->close;
