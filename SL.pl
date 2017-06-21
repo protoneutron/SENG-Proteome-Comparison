@@ -2,13 +2,26 @@
 
 #integrating used modules
 #for excel
-use lib 'Excel-Writer-XLSX-0.95/lib';
+#use lib 'Excel-Writer-XLSX-0.95/lib';
 use Excel::Writer::XLSX;
 
 #for venn-chart
 use GD;
 use lib 'Venn-Chart-1.02/lib';
 use Venn::Chart;
+
+#input the file-paths
+print "(path of first proteom) ";
+chomp($pro1 = <>);
+print "(path of second proteom) ";
+chomp($pro2 = <>);
+
+#running ncbi's modules to create databases and blastfiles
+system("~/UNI/ncbi/ncbi-blast-2.4.0+/bin/makeblastdb -in $pro1 -out temp/db_1 -dbtype prot");
+system("~/UNI/ncbi/ncbi-blast-2.4.0+/bin/makeblastdb -in $pro2 -out temp/db_2 -dbtype prot");
+system("~/UNI/ncbi/ncbi-blast-2.4.0+/bin/blastp -db temp/db_2 -query $pro1 -out temp/blastp_1");
+system("~/UNI/ncbi/ncbi-blast-2.4.0+/bin/blastp -db temp/db_1 -query $pro2 -out temp/blastp_2");
+
 
 #input of BLAST results
 open proteome_1, "temp/blastp_1" or die "$!";
@@ -23,7 +36,7 @@ while (<proteome_1>){
 	$searchcount++;
 	$line = $_;
 #find Querys (=ProteinIDs) of Proteome 1
-	if ($line =~ /[Q]+[u]+[e]+[r]+[y]+[=]+[ ]+[a-z]+[|]/){
+	if ($line =~ /[Q][u][e][r][y][=]\s[a-z]{2}[|]/){
 #copy the ID
 		$queryid = substr($line,10,6);
 #after identifying a Query the loop starts to search for the best-hit (highest alignment score)
@@ -51,7 +64,7 @@ while (<proteome_2>){
 	$searchcount++;
 	$line = $_;
 #find Querys (=ProteinIDs) of Proteome 2
-	if ($line =~ /[Q]+[u]+[e]+[r]+[y]+[=]+[ ]+[a-z]+[|]/){
+	if ($line =~ /[Q][u][e][r][y][=]\s[a-z]{2}[|]/){
 #copy the ID
 		$queryid = substr($line,10,6);
 #after identifying a Query the loop starts to search for the best-hit (highest alignment score)
@@ -124,11 +137,11 @@ $workbook->close;
 @venn2 = (@nonreciprocalbesthits_2,@reciprocalbesthits);
 
 #set resolution of venn-file
-my $venn_chart = Venn::Chart->new( 400, 600 ) or die("$!");
+my $venn_chart = Venn::Chart->new( 600, 400 ) or die("$!");
 
 #set title and legend
 $venn_chart->set_options( -title => 'Diagram' );
-$venn_chart->set_legend( 'proteom 1', 'proteom 2');
+$venn_chart->set_legends( 'proteom 1', 'proteom 2');
 
 my $gd_venn = $venn_chart->plot( \@venn1, \@venn2 );
 
@@ -138,3 +151,12 @@ binmode $fh_venn;
 print {$fh_venn} $gd_venn->jpeg;
 close $fh_venn or die('Unable to close file');
 
+#remove temporary directories
+system("rm temp/*");
+system("rmdir temp/");
+
+__END__
+Matrix: BLOSUM62
+Gap Penalities: Existence: 11, Extensions: 1
+Neighboring words threshold: 11
+Window for multiple hits: 40
